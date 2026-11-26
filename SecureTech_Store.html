@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureTech - Antivirus Store</title>
+  
+  <!-- Firebase SDK & Excel (SheetJS) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    /* ================= GLOBAL STYLES ================= */
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: #fff; color: #111; overflow-x: hidden; }
+    a { text-decoration: none; color: inherit; }
+    button { cursor: pointer; font-family: inherit; outline: none; border: none; }
+    html { scroll-behavior: smooth; }
+    ::-webkit-scrollbar { display: none; }
+    * { -ms-overflow-style: none; scrollbar-width: none; }
+    .hidden { display: none !important; }
+
+    /* ================= LOGIN SCREEN ================= */
+    #login-screen { height: 100vh; display: flex; justify-content: center; align-items: center; background: #111; }
+    .login-box { background: #fff; padding: 30px; border-radius: 10px; width: 90%; max-width: 400px; text-align: center; }
+    .login-box h2 { margin-bottom: 20px; color: #111; }
+    .login-box input, .login-box select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 5px; }
+    .login-box button { width: 100%; padding: 12px; background: #111; color: #fff; border-radius: 5px; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+    .login-box p { font-size: 13px; color: #666; margin-top: 15px; }
+
+    /* ================= FRONTEND ================= */
+    #website-view { display: block; }
+    header { background: #111; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; position: sticky; top: 0; z-index: 100; }
+    .menu-icon, .search-icon { font-size: 24px; cursor: pointer; }
+    .logo { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
+
+    /* Sidebar */
+    .sidebar { position: fixed; top: 0; left: -100%; width: 85%; max-width: 350px; height: 100vh; background: #111; color: #fff; z-index: 200; transition: 0.3s ease-in-out; overflow-y: auto; }
+    .sidebar.active { left: 0; }
+    .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(0,0,0,0.5); z-index: 150; display: none; opacity: 0; transition: opacity 0.3s; }
+    .sidebar-overlay.active { display: block; opacity: 1; }
+    .sidebar-top { display: flex; justify-content: space-between; padding: 20px; border-bottom: 1px solid #333; font-weight: bold; font-size: 14px; }
+    .sidebar-links { list-style: none; padding: 20px; }
+    .sidebar-links li { padding: 15px 0; font-size: 16px; font-weight: 500; letter-spacing: 1px; border-bottom: 1px solid #222; }
+    .sidebar-links li.red-text a { color: #ff0000; }
+
+    /* Hero */
+    .hero { position: relative; width: 100%; height: 400px; background: url('https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=800') center/cover; display: flex; flex-direction: column; justify-content: flex-end; padding: 30px 20px; color: #fff; }
+    .hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); }
+    .hero h2 { position: relative; z-index: 1; font-size: 26px; text-transform: uppercase; font-weight: 900; line-height: 1.2; }
+
+    /* Sections */
+    .section { padding: 30px 20px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .section-title { font-size: 22px; font-weight: 900; text-transform: uppercase; }
+    .product-scroll { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; scroll-snap-type: x mandatory; }
+    .product-card { min-width: 200px; flex: 0 0 auto; background: #f9f9f9; padding: 15px; border-radius: 8px; position: relative; cursor: pointer; transition: transform 0.2s; scroll-snap-align: start; }
+    .product-card:active { transform: scale(0.98); }
+    .product-img { width: 100%; height: 140px; object-fit: contain; margin-bottom: 15px; background: #fff; border-radius: 5px; padding: 10px; }
+    .product-brand { font-size: 11px; color: #777; text-transform: uppercase; margin-bottom: 5px; }
+    .product-name { font-size: 14px; font-weight: bold; margin-bottom: 5px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+    .product-price { font-size: 16px; font-weight: bold; }
+    .stock-badge { font-size: 11px; background: #28a745; color: #fff; padding: 2px 6px; border-radius: 3px; display: inline-block; margin-top: 5px; }
+
+    .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .cat-card { background: #f5f5f5; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 160px; border-radius: 8px; }
+    .cat-card img { width: 100%; height: 80px; object-fit: contain; }
+    .cat-card .cat-name { font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+
+    /* Footer & Social */
+    .footer { background: #111; color: #fff; padding: 40px 20px; }
+    .footer h3 { margin-bottom: 15px; font-size: 16px; display: flex; align-items: center; gap: 10px; color: #00d4ff; }
+    .footer-links { list-style: none; margin-bottom: 20px; }
+    .footer-links li { margin-bottom: 12px; font-size: 13px; color: #aaa; cursor: pointer; }
+    
+    .social-icons { display: flex; gap: 15px; margin-top: 15px; }
+    .social-icons a { background: #222; width: 40px; height: 40px; display: flex; justify-content: center; align-items: center; border-radius: 50%; font-size: 18px; transition: 0.3s; text-decoration: none; color: #fff; }
+    .social-icons a:hover { background: #00d4ff; color: #111; }
+
+    /* ================= PREMIUM PRODUCT DETAIL PAGE ================= */
+    #product-detail-view { display: none; background: #fff; min-height: 100vh; }
+    .detail-header { background: #111; color: #fff; display: flex; align-items: center; padding: 15px 20px; gap: 15px; position: sticky; top: 0; z-index: 100; }
+    .back-btn { font-size: 24px; background: none; border: none; color: white; cursor: pointer; }
+    
+    .detail-main-layout { display: flex; flex-direction: column; padding: 20px; gap: 30px; max-width: 1200px; margin: 0 auto; }
+    
+    /* Image Gallery */
+    .gallery-container { display: flex; flex-direction: column; gap: 10px; }
+    .main-image { width: 100%; height: 350px; background: #f5f5f5; border-radius: 10px; display: flex; justify-content: center; align-items: center; padding: 20px; }
+    .main-image img { max-width: 90%; max-height: 90%; object-fit: contain; }
+    
+    /* Product Info Side */
+    .product-info-side { display: flex; flex-direction: column; }
+    .detail-brand { font-size: 13px; color: #777; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    .detail-name { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 15px; }
+    
+    .price-box { background: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #eee; }
+    .price-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 15px; color: #555; }
+    .price-row.total { border-top: 1px dashed #ccc; padding-top: 10px; margin-top: 5px; font-size: 20px; font-weight: bold; color: #000; }
+
+    /* Variant Selector */
+    .selector-title { font-size: 13px; font-weight: bold; margin-bottom: 10px; color: #333; text-transform: uppercase; }
+    .variant-grid { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .variant-btn { padding: 10px 20px; border: 1px solid #ccc; background: #fff; font-size: 14px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    .variant-btn.active { border: 2px solid #111; background: #111; color: #fff; }
+    
+    /* Buttons */
+    .btn-add-cart { width: 100%; padding: 15px; background: #111; color: #fff; font-weight: bold; font-size: 16px; border-radius: 5px; margin-bottom: 10px; transition: 0.2s; }
+    .btn-buy-now { width: 100%; padding: 15px; background: #fff; color: #111; border: 2px solid #111; font-weight: bold; font-size: 16px; border-radius: 5px; margin-bottom: 20px; }
+    
+    .delivery-info { border: 1px solid #eee; border-radius: 5px; padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .delivery-info span { font-size: 14px; font-weight: bold; }
+    
+    /* Detail Tabs */
+    .tabs-header { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; overflow-x: auto; }
+    .tab-btn { padding: 12px 20px; font-size: 14px; font-weight: bold; color: #777; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tab-btn.active { color: #111; border-bottom: 2px solid #111; }
+    
+    .tab-content { display: none; font-size: 15px; color: #444; line-height: 1.7; }
+    .tab-content.active { display: block; }
+    
+    .pd-list { list-style: none; padding: 0; }
+    .pd-list li { margin-bottom: 12px; display: flex; flex-direction: column; }
+    .pd-list li strong { color: #111; font-weight: bold; font-size: 14px; margin-bottom: 3px; }
+    .pd-list li span { color: #555; font-size: 14px; }
+
+    .brand-info-box { display: flex; gap: 20px; align-items: flex-start; }
+    .brand-info-box img { width: 100px; height: 100px; object-fit: contain; }
+    .brand-info-box p { font-size: 14px; color: #444; line-height: 1.6; }
+
+    .benefits-list { list-style: none; padding-left: 0; }
+    .benefits-list li { margin-bottom: 8px; font-size: 14px; }
+
+    @media (min-width: 768px) {
+      .detail-main-layout { flex-direction: row; padding: 40px 20px; gap: 40px; }
+      .gallery-container { flex: 1.2; position: sticky; top: 100px; height: fit-content; }
+      .main-image { height: 500px; }
+      .product-info-side { flex: 1; }
+    }
+
+    /* ================= ADMIN & AGENT PANEL ================= */
+    #admin-view, #agent-view { display: none; background: #f4f4f9; min-height: 100vh; }
+    .admin-layout { display: flex; min-height: 100vh; }
+    .admin-sidebar { width: 250px; background: #111; color: #fff; padding: 20px; flex-shrink: 0; display: flex; flex-direction: column; gap: 5px; }
+    .admin-sidebar h2 { font-size: 16px; margin-bottom: 20px; color: #ff0000; letter-spacing: 1px; }
+    .admin-menu-btn { display: block; width: 100%; text-align: left; background: none; border: none; color: #aaa; padding: 12px 15px; font-size: 14px; border-radius: 5px; cursor: pointer; transition: 0.2s; }
+    .admin-menu-btn:hover, .admin-menu-btn.active { background: #222; color: #fff; }
+    .admin-main { flex: 1; padding: 20px; overflow-y: auto; }
+    .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .admin-header h1 { font-size: 20px; }
+    .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .card h3 { margin-bottom: 15px; font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+    .btn { background: #111; color: #fff; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; border-radius: 4px; font-size: 14px; }
+    .btn-excel { background: #28a745; color: #fff; padding: 10px 15px; border-radius: 4px; font-weight: bold; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+    th { background: #f9f9f9; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px; color: #555; }
+    .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-family: inherit; }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+
+    .toggle-view-btn { position: fixed; bottom: 20px; right: 20px; background: #ff0000; color: #fff; padding: 12px 20px; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; z-index: 9999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); font-size: 14px; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10000; justify-content: center; align-items: center; padding: 20px; }
+    .modal.active { display: flex; }
+    .modal-content { background: #fff; width: 100%; max-width: 400px; padding: 20px; border-radius: 8px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; }
+
+    @media (max-width: 768px) {
+      .admin-layout { flex-direction: column; }
+      .admin-sidebar { width: 100%; flex-direction: row; overflow-x: auto; padding: 10px; }
+      .admin-sidebar h2 { display: none; }
+      .admin-menu-btn { white-space: nowrap; text-align: center; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  .search-bar{padding:10px 20px;background:#222}.search-bar input{width:100%;padding:10px;border-radius:5px;border:none}
+    .demo-banner{background:#c00;color:#fff;text-align:center;padding:8px;font-size:13px}
+    button:disabled{opacity:.5;cursor:not-allowed}
+  </style>
+</head>
+<body>
+
+  <!-- ================= LOGIN SCREEN ================= -->
+  <div id="login-screen" class="hidden">
+    <div class="login-box">
+      <h2>Staff Login</h2>
+      <input type="email" id="login-user" placeholder="Email (Admin/Agent)">
+      <input type="password" id="login-pass" placeholder="Password">
+      <button onclick="handleLogin()">Login</button>
+      <button onclick="showView('website-view')" style="background:#777">← Back to Store</button>
+    </div>
+  </div>
+
+  <!-- ================= CUSTOMER WEBSITE ================= -->
+  <div id="demo-banner" class="demo-banner hidden">Demo mode: Firebase config nahi hai, orders save nahi honge.</div>
+  <div id="website-view">
+    <header>
+      <div class="menu-icon" onclick="toggleMenu()">☰</div>
+      <div class="logo">SECURE-TECH</div>
+      <div style="display: flex; gap: 15px;">
+        <div class="search-icon" onclick="toggleSearch()">🔍</div>
+        <div onclick="showView('login-screen')" style="cursor:pointer; font-size: 13px; font-weight:bold; color:#fff;">Staff</div>
+      </div>
+    </header>
+
+    <div class="search-bar hidden" id="search-bar"><input id="search-input" placeholder="Search antivirus..." oninput="onSearch(this.value)"></div>
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleMenu()"></div>
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-top"><span>MENU</span><span onclick="toggleMenu()" style="cursor:pointer">✕</span></div>
+      <ul class="sidebar-links" id="sidebar-links"></ul>
+    </div>
+
+    <div class="hero">
+      <h2>PROTECT YOUR PC<br>WITH PREMIUM SECURITY</h2>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><div class="section-title">TOP ANTIVIRUS</div></div>
+      <div class="product-scroll" id="frontend-products"></div>
+    </div>
+
+    <div class="section" style="background: #fafafa;">
+      <div class="section-title" style="margin-bottom: 20px;">POPULAR BRANDS</div>
+      <div class="category-grid" id="brand-grid"></div>
+    </div>
+
+    <div class="footer">
+      <h3>📞 GET IN TOUCH</h3>
+      <p style="font-size: 13px; margin-bottom: 15px;" id="footer-contact">WhatsApp: +91 9876543210 | GST: 27XXXXX1234X1Z5</p>
+      <p style="font-size: 13px; margin-bottom: 20px;" id="footer-address">Shop No. 12, IT Plaza, Mumbai</p>
+      
+      <div style="display: flex; gap: 30px;">
+        <div style="flex: 1;">
+          <h3>INFORMATION</h3>
+          <ul class="footer-links">
+            <li onclick="showInfo('about')" style="cursor:pointer;">ABOUT US</li>
+            <li onclick="showInfo('faq')" style="cursor:pointer;">FAQ</li>
+            <li onclick="showInfo('privacy')" style="cursor:pointer;">PRIVACY POLICY</li>
+            <li onclick="showInfo('returns')" style="cursor:pointer;">RETURN & EXCHANGE</li>
+            <li onclick="showInfo('bulk')" style="cursor:pointer;">BULK / CORPORATE</li>
+          </ul>
+        </div>
+        <div style="flex: 1;">
+          <h3>SOCIAL MEDIA</h3>
+          <div class="social-icons">
+            <a id="social-instagram" href="#" target="_blank" title="Instagram">📸</a>
+            <a id="social-facebook" href="#" target="_blank" title="Facebook">📘</a>
+            <a id="social-youtube" href="#" target="_blank" title="YouTube">▶️</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PREMIUM PRODUCT DETAIL PAGE ================= -->
+  <div id="product-detail-view" class="hidden">
+    <div class="detail-header">
+      <button class="back-btn" onclick="closeProductDetail()">←</button>
+      <div class="logo" style="font-size: 16px;">PRODUCT DETAILS</div>
+    </div>
+    
+    <div class="detail-main-layout">
+      <div class="gallery-container">
+        <div class="main-image"><img id="d-img" src="" alt="Product"></div>
+      </div>
+
+      <div class="product-info-side">
+        <div class="detail-brand" id="d-brand">BRAND</div>
+        <div class="detail-name" id="d-name">Product Name</div>
+        
+        <div class="price-box">
+          <div class="price-row"><span>Product Price:</span><span id="d-price">₹0</span></div>
+          <div class="price-row"><span>Installation Charge:</span><span id="d-install">₹0</span></div>
+          <div class="price-row total"><span>Total Payable:</span><span id="d-total">₹0</span></div>
+        </div>
+
+        <div class="selector-title">SELECT VALIDITY</div>
+        <div class="variant-grid" id="d-variants"></div>
+
+        <button class="btn-add-cart" id="book-btn" onclick="openBookingModal()">BOOK INSTALLATION & BUY</button>
+
+        <div class="delivery-info">
+          <div>
+            <span>EXPRESS DELIVERY</span><br>
+            <small style="color:#777;">Digital Key sent instantly via WhatsApp/Email</small>
+          </div>
+        </div>
+
+        <div class="tabs-header">
+          <button class="tab-btn active" onclick="switchDetailTab('about', event)">About Product</button>
+          <button class="tab-btn" onclick="switchDetailTab('details', event)">Product Details</button>
+          <button class="tab-btn" onclick="switchDetailTab('brand', event)">Brand Info</button>
+        </div>
+
+        <div id="tab-about" class="tab-content active">
+          <p id="d-desc" style="margin-bottom: 15px;"></p>
+          <ul class="benefits-list" id="d-benefits"></ul>
+        </div>
+
+        <div id="tab-details" class="tab-content">
+          <ul class="pd-list">
+            <li><strong>Manufacturer :</strong> <span id="d-manufacturer"></span></li>
+            <li><strong>Country of Origin :</strong> <span id="d-origin"></span></li>
+            <li><strong>Imported By :</strong> <span id="d-importer"></span></li>
+            <li><strong>Address :</strong> <span id="d-address"></span></li>
+            <li><strong>Generic Name :</strong> <span id="d-generic"></span></li>
+            <li><strong>Package Contents :</strong> <span id="d-package"></span></li>
+            <li><strong>Installation Guide :</strong> <span id="d-guide"></span></li>
+          </ul>
+        </div>
+
+        <div id="tab-brand" class="tab-content">
+          <div class="brand-info-box">
+            <img id="d-brand-logo" src="" alt="Logo">
+            <div>
+              <h4 style="margin-bottom: 5px;" id="d-brand-title">ABOUT BRAND</h4>
+              <p id="d-brand-desc"></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN PANEL ================= -->
+  <div id="admin-view" class="hidden">
+    <div class="admin-layout">
+      <div class="admin-sidebar">
+        <h2>SECURE-TECH ADMIN</h2>
+        <button class="admin-menu-btn active" onclick="switchAdminTab('dashboard', this)">📊 Dashboard</button>
+        <button class="admin-menu-btn" onclick="switchAdminTab('inventory', this)">📦 Inventory (Excel)</button>
+        <button class="admin-menu-btn" onclick="switchAdminTab('orders', this)">🛒 Live Orders</button>
+        <button class="admin-menu-btn" onclick="switchAdminTab('settings', this)">⚙️ Store Settings</button>
+        <button class="admin-menu-btn" onclick="switchAdminTab('footer', this)">📄 Footer & Pages</button>
+        <button class="admin-menu-btn" onclick="switchAdminTab('firebase', this)">🔥 Firebase Setup</button>
+      </div>
+
+      <div class="admin-main">
+        
+        <!-- 1. DASHBOARD -->
+        <div id="admin-dashboard" class="admin-section">
+          <div class="admin-header"><h1>Dashboard Overview</h1></div>
+          <div class="card">
+            <h3>Live Store Data</h3>
+            <p><b>Store Name:</b> <span id="admin-dash-name">Loading...</span></p>
+            <p><b>Contact:</b> <span id="admin-dash-whatsapp">Loading...</span></p>
+            <p><b>Installation Charge:</b> <span id="admin-dash-install-charge">Loading...</span></p>
+          </div>
+          <div class="card">
+            <h3>Recent Bookings (Live)</h3>
+            <table>
+              <thead><tr><th>Customer</th><th>Contact</th><th>Product</th></tr></thead>
+              <tbody id="admin-booking-list"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 2. INVENTORY -->
+        <div id="admin-inventory" class="admin-section" style="display: none;">
+          <div class="admin-header"><h1>Inventory Management</h1><button class="btn-excel" style="background:#555" onclick="seedSample()">Load Sample Products</button></div>
+          <div class="card">
+            <div style="display:flex; gap:10px; margin-bottom: 15px;">
+              <button class="btn-excel" onclick="exportExcel()">⬇️ Export to Excel</button>
+              <label class="btn-excel" style="background:#007bff; cursor:pointer;">
+                ⬆️ Import from Excel <input type="file" id="excel-file" accept=".xlsx, .xls" onchange="importExcel(event)" style="display:none;">
+              </label>
+            </div>
+            <table>
+              <thead><tr><th>Brand</th><th>Model/Name</th><th>Price</th><th>Install Chg</th><th>Stock</th></tr></thead>
+              <tbody id="admin-inventory-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 3. LIVE ORDERS -->
+        <div id="admin-orders" class="admin-section" style="display: none;">
+          <div class="admin-header"><h1>Live Orders</h1></div>
+          <div class="card">
+            <table>
+              <thead><tr><th>Customer</th><th>Product</th><th>Amount</th><th>Payment</th><th>Status</th><th>Agent</th></tr></thead>
+              <tbody id="admin-orders-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. STORE SETTINGS -->
+        <div id="admin-settings" class="admin-section" style="display: none;">
+          <div class="admin-header"><h1>Store Settings</h1></div>
+          <div class="card">
+            <h3>Business Details</h3>
+            <div class="form-grid">
+              <div class="form-group"><label>Store Name</label><input type="text" id="s-name"></div>
+              <div class="form-group"><label>WhatsApp Number</label><input type="text" id="s-whatsapp"></div>
+              <div class="form-group"><label>UPI ID</label><input type="text" id="s-upi"></div>
+              <div class="form-group"><label>Installation Charge (₹)</label><input type="number" id="s-install-charge"></div>
+              <div class="form-group"><label>GST Number</label><input type="text" id="s-gst"></div>
+              <div class="form-group"><label>Store Address</label><input type="text" id="s-address"></div>
+            </div>
+            <br>
+            <button class="btn" onclick="saveSettingsToDB()" id="saveBtn">Save Settings Live</button>
+          </div>
+        </div>
+
+        <!-- 5. FOOTER & PAGES -->
+        <div id="admin-footer" class="admin-section" style="display: none;">
+          <div class="admin-header"><h1>Footer Pages & Social Media</h1></div>
+          <div class="card">
+            <h3>Policy Pages Content</h3>
+            <div class="form-grid">
+              <div class="form-group"><label>About Us</label><textarea id="f-about"></textarea></div>
+              <div class="form-group"><label>FAQ</label><textarea id="f-faq"></textarea></div>
+              <div class="form-group"><label>Privacy Policy</label><textarea id="f-privacy"></textarea></div>
+              <div class="form-group"><label>Return & Exchange Policy</label><textarea id="f-return"></textarea></div>
+              <div class="form-group" style="grid-column: span 2;"><label>Bulk / Corporate Order Info</label><textarea id="f-bulk"></textarea></div>
+            </div>
+            <br>
+            <button class="btn" onclick="saveFooterToDB()" id="saveFooterBtn">Save Pages Data</button>
+          </div>
+
+          <div class="card">
+            <h3>Social Media Links</h3>
+            <div class="form-grid">
+              <div class="form-group"><label>Instagram Link</label><input type="url" id="f-insta" placeholder="https://instagram.com/yourpage"></div>
+              <div class="form-group"><label>Facebook Link</label><input type="url" id="f-fb" placeholder="https://facebook.com/yourpage"></div>
+              <div class="form-group"><label>YouTube Link</label><input type="url" id="f-yt" placeholder="https://youtube.com/yourchannel"></div>
+            </div>
+            <br>
+            <button class="btn" onclick="saveSocialToDB()" id="saveSocialBtn">Save Social Links</button>
+          </div>
+        </div>
+
+        <!-- 6. FIREBASE -->
+        <div id="admin-firebase" class="admin-section" style="display: none;">
+          <div class="admin-header"><h1>Firebase Live Database</h1></div>
+          <div class="card">
+            <h3>Database Status</h3>
+            <p>Website is connected to Firebase Firestore. Any data you update here will be saved in the cloud and will reflect on all user devices instantly.</p>
+            <br>
+            <div id="fb-status" style="padding:15px;border-radius:5px;border:1px solid #ccc;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= AGENT PANEL ================= -->
+  <div id="agent-view" class="hidden">
+    <div class="admin-layout">
+      <div class="admin-sidebar">
+        <h2>AGENT PORTAL</h2>
+        <button class="admin-menu-btn active">📋 My Tasks</button>
+      </div>
+      <div class="admin-main">
+        <div class="admin-section">
+          <div class="card">
+            <h3>Assigned Installation Tasks</h3>
+            <table>
+              <thead><tr><th>Customer</th><th>Contact</th><th>Product</th><th>Status</th><th>Action</th></tr></thead>
+              <tbody id="agent-tasks-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOOKING MODAL -->
+  <div class="modal" id="booking-modal">
+    <div class="modal-content">
+      <div class="modal-header"><h2>Book Installation</h2><button class="close-btn" onclick="closeBookingModal()">×</button></div>
+      <div id="booking-form-wrap"><form onsubmit="confirmBooking(event)">
+        <div class="form-group" style="margin-bottom: 10px;"><label>Your Name</label><input type="text" id="book-name" required maxlength="60" placeholder="Enter Full Name"></div>
+        <div class="form-group" style="margin-bottom: 15px;"><label>WhatsApp Number</label><input type="tel" id="book-phone" required maxlength="10" pattern="[6-9][0-9]{9}" placeholder="10-digit number"></div>
+        <div style="background: #f9f9f9; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-weight: bold; display: flex; justify-content: space-between;">
+          <span>Total Amount:</span> <span id="modal-total-amount">₹0</span>
+        </div>
+        <button type="submit" class="btn" id="confirm-btn" style="width: 100%; padding: 15px; font-size: 16px;">Confirm Booking</button>
+      </form></div>
+      <div id="booking-done-wrap" class="hidden"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="info-modal"><div class="modal-content">
+    <div class="modal-header"><h2 id="info-title"></h2><button class="close-btn" onclick="document.getElementById('info-modal').classList.remove('active')">×</button></div>
+    <p id="info-text" style="white-space:pre-wrap;font-size:14px"></p></div></div>
+
+  <button class="toggle-view-btn hidden" onclick="logout()" id="toggleBtn">Logout</button>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    // 🔴 STEP 1: Firebase Console se apna config yahan paste karein 🔴
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    let db = null, auth = null, FV = null;
+    if (!firebaseConfig.apiKey.startsWith("YOUR_")) {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore(); auth = firebase.auth(); FV = firebase.firestore.FieldValue;
+      } catch (e) { console.error("Firebase init failed", e); }
+    }
+    const live = !!db;
+
+    // ---------- Helpers ----------
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : '#';
+    const PH = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='150' height='150'><rect width='100%25' height='100%25' fill='%23eeeeee'/></svg>";
+    const withTimeout = (p, ms = 15000) => Promise.race([p, new Promise((_, r) => setTimeout(() => r(new Error('timeout')), ms))]);
+
+    // ---------- State ----------
+    const SAMPLE = [
+      { id: 's1', brand: "McAfee", name: "Internet Security 1PC/1Year", price: 999, installCharge: 200, stock: 10, image: "",
+        desc: "Comprehensive protection against viruses, ransomware and phishing.",
+        benefits: ["Blocks viruses and malware", "Safe web browsing", "Easy to install"],
+        manufacturer: "McAfee Corp.", origin: "USA", importer: "McAfee India Pvt. Ltd.", address: "Bangalore, India",
+        generic: "Antivirus Software", package: "1 Activation Key, Digital Setup Guide",
+        guide: "Our executive will connect via remote or visit to install.", brandDesc: "McAfee is a global leader in online protection." },
+      { id: 's2', brand: "Quick Heal", name: "Total Security 1PC/1Year", price: 1200, installCharge: 150, stock: 12, image: "",
+        desc: "Advanced DNA scanning to detect unknown threats.",
+        benefits: ["Total security for PC", "Safe banking", "Zero-day protection"],
+        manufacturer: "Quick Heal Technologies", origin: "India", importer: "Quick Heal Technologies Ltd.", address: "Pune, India",
+        generic: "Antivirus Software", package: "License Key, User Manual",
+        guide: "We will handle complete setup.", brandDesc: "Quick Heal is an Indian cybersecurity company." }
+    ];
+    let settings = { name: "SecureTech Antivirus", whatsapp: "+91 9876543210", upi: "", installCharge: 250, gst: "", address: "" };
+    let footer = { aboutUs: "", faq: "", privacyPolicy: "", returnPolicy: "", bulkOrder: "", insta: "", fb: "", yt: "" };
+    let products = live ? [] : SAMPLE.map(p => ({ ...p }));
+    let orders = [], agents = [], me = null, staffSubs = [];
+    let curId = null, selVar = 0, q = '', brandF = '';
+
+    const charge = p => Number.isFinite(Number(p.installCharge)) && p.installCharge !== '' && p.installCharge != null ? Number(p.installCharge) : Number(settings.installCharge) || 0;
+    const variantsOf = p => {
+      const v = [{ label: '1 Year', price: Number(p.price) || 0 }];
+      if (Number(p.price2y) > 0) v.push({ label: '2 Years', price: Number(p.price2y) });
+      if (Number(p.price3y) > 0) v.push({ label: '3 Years', price: Number(p.price3y) });
+      return v;
+    };
+    const curProduct = () => products.find(x => String(x.id) === String(curId));
+
+    // ---------- Views ----------
+    function showView(id) {
+      ['login-screen','website-view','product-detail-view','admin-view','agent-view'].forEach(v => $(v).classList.add('hidden'));
+      $(id).classList.remove('hidden');
+      $('toggleBtn').classList.toggle('hidden', !(id === 'admin-view' || id === 'agent-view'));
+      window.scrollTo(0, 0);
+    }
+
+    // ---------- Auth (staff only) ----------
+    async function handleLogin() {
+      if (!live) return alert("Firebase configure nahi hai. Pehle config daalein.");
+      try { await auth.signInWithEmailAndPassword($('login-user').value.trim(), $('login-pass').value); }
+      catch (e) { alert("Email ya password galat hai."); }
+    }
+    function logout() { if (live && auth.currentUser) auth.signOut(); else showView('website-view'); }
+    function unsubStaff() { staffSubs.forEach(f => f()); staffSubs = []; }
+
+    if (live) {
+      auth.onAuthStateChanged(async u => {
+        unsubStaff(); me = null;
+        if (!u) { $('login-pass').value = ''; showView('website-view'); return; }
+        try {
+          const d = await db.collection('users').doc(u.uid).get();
+          const role = d.exists ? d.data().role : null;
+          if (role !== 'admin' && role !== 'agent') { await auth.signOut(); alert("Is account ko access nahi hai."); return; }
+          me = { uid: u.uid, role, name: d.data().name || u.email };
+          showView(role === 'admin' ? 'admin-view' : 'agent-view');
+          startStaff();
+        } catch (e) { console.error(e); await auth.signOut(); alert("Login error. Firestore rules check karein."); }
+      });
+    }
+
+    // ---------- Firestore listeners ----------
+    function startPublic() {
+      if (!live) { syncSettings(); syncFooter(); renderFrontend(); return; }
+      db.collection('products').onSnapshot(s => {
+        products = s.docs.map(d => ({ ...d.data(), id: d.id }));
+        renderFrontend(); if (me && me.role === 'admin') renderInventory();
+      }, console.error);
+      db.collection('settings').doc('store').onSnapshot(d => { if (d.exists) settings = { ...settings, ...d.data() }; syncSettings(); }, console.error);
+      db.collection('settings').doc('footer').onSnapshot(d => { if (d.exists) footer = { ...footer, ...d.data() }; syncFooter(); }, console.error);
+    }
+    function startStaff() {
+      if (me.role === 'admin') {
+        staffSubs.push(db.collection('orders').orderBy('date', 'desc').limit(100).onSnapshot(s => {
+          orders = s.docs.map(d => ({ ...d.data(), _id: d.id })); renderOrders();
+        }, console.error));
+        staffSubs.push(db.collection('users').where('role', '==', 'agent').onSnapshot(s => {
+          agents = s.docs.map(d => ({ uid: d.id, name: d.data().name || d.id })); renderOrders();
+        }, console.error));
+        renderInventory(); syncSettings(); syncFooter();
+        $('fb-status').innerHTML = '<strong style="color:#1e8e3e">✅ Firebase connected</strong>';
+      } else {
+        staffSubs.push(db.collection('orders').where('agent', '==', me.uid).onSnapshot(s => {
+          orders = s.docs.map(d => ({ ...d.data(), _id: d.id })); renderAgent();
+        }, console.error));
+      }
+    }
+
+    // ---------- Settings / footer UI ----------
+    function syncSettings() {
+      $('admin-dash-name').innerText = settings.name;
+      $('admin-dash-whatsapp').innerText = settings.whatsapp;
+      $('admin-dash-install-charge').innerText = `₹${settings.installCharge}`;
+      $('s-name').value = settings.name || ''; $('s-whatsapp').value = settings.whatsapp || '';
+      $('s-upi').value = settings.upi || ''; $('s-install-charge').value = settings.installCharge;
+      $('s-gst').value = settings.gst || ''; $('s-address').value = settings.address || '';
+      syncFooter();
+    }
+    function syncFooter() {
+      $('footer-contact').innerText = `WhatsApp: ${settings.whatsapp}` + (settings.gst ? ` | GST: ${settings.gst}` : '');
+      $('footer-address').innerText = settings.address || '';
+      [['f-about','aboutUs'],['f-faq','faq'],['f-privacy','privacyPolicy'],['f-return','returnPolicy'],['f-bulk','bulkOrder'],['f-insta','insta'],['f-fb','fb'],['f-yt','yt']]
+        .forEach(([id, k]) => { $(id).value = footer[k] || ''; });
+      $('social-instagram').href = safeUrl(footer.insta); $('social-facebook').href = safeUrl(footer.fb); $('social-youtube').href = safeUrl(footer.yt);
+    }
+    const INFO = { about: ['About Us', 'aboutUs'], faq: ['FAQ', 'faq'], privacy: ['Privacy Policy', 'privacyPolicy'], returns: ['Return & Exchange', 'returnPolicy'], bulk: ['Bulk / Corporate', 'bulkOrder'] };
+    function showInfo(k) {
+      $('info-title').innerText = INFO[k][0];
+      $('info-text').innerText = footer[INFO[k][1]] || 'Jaankari jaldi available hogi.';
+      $('info-modal').classList.add('active');
+    }
+
+    async function saveDoc(path, data, btnId, label, msg) {
+      const btn = $(btnId);
+      if (!live) return alert("Demo mode: Firebase connect nahi hai, save nahi hua.");
+      btn.innerText = "Saving..."; btn.disabled = true;
+      try { await withTimeout(db.doc(path).set(data, { merge: true })); alert(msg); }
+      catch (e) { alert("Save fail hua. Admin login aur internet check karein."); }
+      btn.innerText = label; btn.disabled = false;
+    }
+    const saveSettingsToDB = () => saveDoc('settings/store', {
+      name: $('s-name').value.trim(), whatsapp: $('s-whatsapp').value.trim(), upi: $('s-upi').value.trim(),
+      installCharge: Number($('s-install-charge').value) || 0, gst: $('s-gst').value.trim(), address: $('s-address').value.trim()
+    }, 'saveBtn', 'Save Settings Live', 'Settings saved!');
+    const saveFooterToDB = () => saveDoc('settings/footer', {
+      aboutUs: $('f-about').value, faq: $('f-faq').value, privacyPolicy: $('f-privacy').value,
+      returnPolicy: $('f-return').value, bulkOrder: $('f-bulk').value
+    }, 'saveFooterBtn', 'Save Pages Data', 'Pages saved!');
+    const saveSocialToDB = () => saveDoc('settings/footer', {
+      insta: $('f-insta').value.trim(), fb: $('f-fb').value.trim(), yt: $('f-yt').value.trim()
+    }, 'saveSocialBtn', 'Save Social Links', 'Social links saved!');
+
+    // ---------- Storefront ----------
+    function renderFrontend() {
+      const box = $('frontend-products'); box.innerHTML = '';
+      const list = products.filter(p => (!brandF || p.brand === brandF) && (!q || `${p.brand} ${p.name}`.toLowerCase().includes(q)));
+      if (!list.length) box.innerHTML = '<p style="padding:20px;color:#777">Koi product nahi mila.</p>';
+      list.forEach(p => {
+        const card = document.createElement('div'); card.className = 'product-card';
+        card.onclick = () => openProductDetail(p.id);
+        card.innerHTML = `<img src="${esc(p.image || PH)}" class="product-img" alt="${esc(p.brand)}" onerror="this.onerror=null;this.src=PH">
+          <div class="product-brand">${esc(p.brand)}</div><div class="product-name">${esc(p.name)}</div>
+          <div class="product-price">₹${esc(p.price)}</div>
+          <div class="stock-badge">${p.stock > 0 ? 'In Stock' : 'Out of Stock'}</div>`;
+        box.appendChild(card);
+      });
+      const brands = [...new Set(products.map(p => p.brand))];
+      const grid = $('brand-grid'); grid.innerHTML = '';
+      const links = $('sidebar-links'); links.innerHTML = '';
+      const pick = b => { brandF = b; renderFrontend(); $('sidebar').classList.remove('active'); $('sidebar-overlay').classList.remove('active'); $('frontend-products').scrollIntoView({ behavior: 'smooth' }); };
+      [['ALL PRODUCTS', ''], ...brands.map(b => [b.toUpperCase(), b])].forEach(([label, b]) => {
+        const li = document.createElement('li'); li.innerHTML = `<a href="#">${esc(label)}</a>`;
+        li.onclick = e => { e.preventDefault(); pick(b); }; links.appendChild(li);
+      });
+      brands.forEach(b => {
+        const img = (products.find(p => p.brand === b) || {}).image || PH;
+        const c = document.createElement('div'); c.className = 'cat-card';
+        c.innerHTML = `<img src="${esc(img)}" alt="${esc(b)}" onerror="this.onerror=null;this.src=PH"><div class="cat-name">${esc(b)} <span>→</span></div>`;
+        c.onclick = () => pick(b); grid.appendChild(c);
+      });
+    }
+    function toggleSearch() { $('search-bar').classList.toggle('hidden'); $('search-input').focus(); }
+    function onSearch(v) { q = v.trim().toLowerCase(); renderFrontend(); }
+
+    function openProductDetail(id) {
+      curId = id; selVar = 0; const p = curProduct(); if (!p) return;
+      $('d-img').src = p.image || PH; $('d-img').onerror = function () { this.onerror = null; this.src = PH; };
+      $('d-brand').innerText = p.brand; $('d-name').innerText = p.name;
+      $('d-desc').innerText = p.desc || '';
+      $('d-benefits').innerHTML = (p.benefits || []).map(b => `<li><span style="color:#28a745;margin-right:5px;">✔</span> ${esc(b)}</li>`).join('');
+      [['manufacturer','manufacturer'],['origin','origin'],['importer','importer'],['address','address'],['generic','generic'],['package','package'],['guide','guide']]
+        .forEach(([el, k]) => { $('d-' + el).innerText = p[k] || '-'; });
+      $('d-brand-logo').src = p.image || PH; $('d-brand-logo').onerror = function () { this.onerror = null; this.src = PH; };
+      $('d-brand-title').innerText = `ABOUT ${String(p.brand).toUpperCase()}`; $('d-brand-desc').innerText = p.brandDesc || '';
+      renderVariants();
+      switchDetailTab('about', { target: document.querySelector('.tab-btn') });
+      $('website-view').classList.add('hidden'); $('product-detail-view').classList.remove('hidden'); window.scrollTo(0, 0);
+    }
+    function renderVariants() {
+      const p = curProduct(), vs = variantsOf(p), box = $('d-variants'); box.innerHTML = '';
+      vs.forEach((v, i) => {
+        const b = document.createElement('button'); b.className = 'variant-btn' + (i === selVar ? ' active' : '');
+        b.innerText = `${v.label} - ₹${v.price}`; b.onclick = () => { selVar = i; renderVariants(); }; box.appendChild(b);
+      });
+      const price = vs[selVar].price, ch = charge(p);
+      $('d-price').innerText = `₹${price}`; $('d-install').innerText = `₹${ch}`; $('d-total').innerText = `₹${price + ch}`;
+      const out = !(p.stock > 0); const btn = $('book-btn');
+      btn.disabled = out; btn.innerText = out ? 'OUT OF STOCK' : 'BOOK INSTALLATION & BUY';
+    }
+    function closeProductDetail() { $('product-detail-view').classList.add('hidden'); $('website-view').classList.remove('hidden'); curId = null; }
+    function switchDetailTab(tabId, event) {
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      $('tab-' + tabId).classList.add('active'); if (event && event.target) event.target.classList.add('active');
+    }
+
+    // ---------- Booking ----------
+    const totalFor = p => variantsOf(p)[selVar].price + charge(p);
+    function openBookingModal() {
+      const p = curProduct(); if (!p || !(p.stock > 0)) return;
+      $('modal-total-amount').innerText = `₹${totalFor(p)}`;
+      $('booking-form-wrap').classList.remove('hidden'); $('booking-done-wrap').classList.add('hidden');
+      $('booking-modal').classList.add('active');
+    }
+    function closeBookingModal() { $('booking-modal').classList.remove('active'); }
+    function finishBooking() { closeBookingModal(); closeProductDetail(); }
+
+    async function confirmBooking(e) {
+      e.preventDefault();
+      const p = curProduct(); if (!p) return;
+      const name = $('book-name').value.trim(), phone = $('book-phone').value.trim();
+      if (name.length < 2) return alert("Naam daalein.");
+      if (!/^[6-9]\d{9}$/.test(phone)) return alert("Sahi 10-digit mobile number daalein.");
+      if (!(p.stock > 0)) return alert("Product out of stock hai.");
+      if (!live) return alert("Demo mode: Firebase connect nahi hai, booking save nahi hogi.");
+      const v = variantsOf(p)[selVar], total = totalFor(p), btn = $('confirm-btn');
+      btn.disabled = true; btn.innerText = "Please wait...";
+      try {
+        const ref = await withTimeout(db.collection('orders').add({
+          customer: name, contact: phone, productId: String(p.id), productName: `${p.name} (${v.label})`,
+          amount: total, payment: 'Unpaid', status: 'Pending', agent: '', agentName: '', date: FV.serverTimestamp()
+        }));
+        showBookingDone(ref.id, total, name, `${p.name} (${v.label})`);
+        $('book-name').value = ''; $('book-phone').value = '';
+      } catch (err) { console.error(err); alert("Booking nahi ho payi. Internet check karke dobara try karein."); }
+      btn.disabled = false; btn.innerText = "Confirm Booking";
+    }
+    function showBookingDone(id, total, name, prod) {
+      const short = id.slice(0, 6).toUpperCase();
+      const wa = String(settings.whatsapp || '').replace(/\D/g, '');
+      const upiLink = settings.upi ? `upi://pay?pa=${encodeURIComponent(settings.upi)}&pn=${encodeURIComponent(settings.name)}&am=${total}&cu=INR&tn=${encodeURIComponent('Order ' + short)}` : '';
+      const waLink = `https://wa.me/${wa}?text=${encodeURIComponent(`Hi, mera order ${short} hai: ${prod}, ₹${total}. Naam: ${name}`)}`;
+      $('booking-done-wrap').innerHTML = `
+        <h3 style="margin-bottom:10px">✅ Booking Confirmed</h3>
+        <p>Order ID: <b>${esc(short)}</b></p><p>Total: <b>₹${esc(total)}</b></p>
+        <p style="font-size:13px;color:#555;margin:10px 0">Payment karke WhatsApp par screenshot bhejein. Hamara executive aapse contact karega.</p>
+        ${upiLink ? `<a href="${esc(upiLink)}" class="btn" style="display:block;text-align:center;padding:12px;margin-bottom:8px">Pay ₹${esc(total)} via UPI</a><p style="font-size:12px;color:#777;margin-bottom:8px">UPI ID: ${esc(settings.upi)}</p>` : ''}
+        <a href="${esc(waLink)}" target="_blank" rel="noopener" class="btn" style="display:block;text-align:center;padding:12px;margin-bottom:8px;background:#25d366">Send on WhatsApp</a>
+        <button class="btn" style="width:100%;padding:12px;background:#777" onclick="finishBooking()">Close</button>`;
+      $('booking-form-wrap').classList.add('hidden'); $('booking-done-wrap').classList.remove('hidden');
+    }
+
+    // ---------- Admin ----------
+    function switchAdminTab(tab, btn) {
+      document.querySelectorAll('.admin-section').forEach(s => s.style.display = 'none');
+      document.querySelectorAll('.admin-menu-btn').forEach(b => b.classList.remove('active'));
+      $('admin-' + tab).style.display = 'block'; btn.classList.add('active');
+    }
+    function renderInventory() {
+      $('admin-inventory-table').innerHTML = products.map(p =>
+        `<tr><td>${esc(p.brand)}</td><td>${esc(p.name)}</td><td>₹${esc(p.price)}</td><td>₹${esc(charge(p))}</td><td>${esc(p.stock)}</td></tr>`).join('');
+    }
+    const fmtDate = o => o.date && o.date.toDate ? o.date.toDate().toLocaleString('en-IN') : '';
+    function renderOrders() {
+      $('admin-booking-list').innerHTML = orders.slice(0, 10).map(o =>
+        `<tr><td>${esc(o.customer)}</td><td>${esc(o.contact)}</td><td>${esc(o.productName)}</td></tr>`).join('');
+      $('admin-orders-table').innerHTML = orders.map(o => {
+        const opts = [`<option value="" ${!o.agent ? 'selected' : ''}>Unassigned</option>`]
+          .concat(agents.map(a => `<option value="${esc(a.uid)}" ${o.agent === a.uid ? 'selected' : ''}>${esc(a.name)}</option>`)).join('');
+        const pay = o.payment === 'Paid' ? '<span style="color:green">Paid</span>'
+          : `<span style="color:#c00">Unpaid</span> <button data-pay="${esc(o._id)}" style="padding:3px 8px;border-radius:4px;background:#111;color:#fff;font-size:12px">Mark Paid</button>`;
+        return `<tr><td>${esc(o.customer)}<br><small>${esc(o.contact)}</small><br><small>${esc(fmtDate(o))}</small></td>
+          <td>${esc(o.productName)}</td><td>₹${esc(o.amount)}</td><td>${pay}</td>
+          <td><span style="color:${o.status === 'Completed' ? 'green' : 'orange'}">${esc(o.status)}</span></td>
+          <td><select data-id="${esc(o._id)}">${opts}</select></td></tr>`;
+      }).join('');
+    }
+    async function assignAgent(id, uid) {
+      const a = agents.find(x => x.uid === uid);
+      try { await db.collection('orders').doc(id).update({ agent: uid, agentName: a ? a.name : '' }); }
+      catch (e) { alert("Assign nahi hua."); }
+    }
+    async function markPaid(id) {
+      try { await db.collection('orders').doc(id).update({ payment: 'Paid' }); } catch (e) { alert("Update fail hua."); }
+    }
+
+    // Inventory import/export
+    const COLS = ['id','brand','name','price','price2y','price3y','installCharge','stock','image','desc','benefits','manufacturer','origin','importer','address','generic','package','guide','brandDesc'];
+    function exportExcel() {
+      const rows = products.map(p => { const r = {}; COLS.forEach(c => r[c] = c === 'benefits' ? (p.benefits || []).join(',') : (p[c] ?? '')); return r; });
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows, { header: COLS }), "Inventory");
+      XLSX.writeFile(wb, "SecureTech_Inventory.xlsx");
+    }
+    function importExcel(event) {
+      const file = event.target.files[0]; if (!file) return;
+      if (!live) return alert("Demo mode: Firebase connect nahi hai.");
+      const reader = new FileReader();
+      reader.onload = async e => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+          const items = rows.map((it, i) => ({
+            id: String(it.id || 'p' + Date.now() + i).replace(/[\/\s]/g, '_'),
+            brand: String(it.brand || 'Unknown'), name: String(it.name || 'Product'),
+            price: Number(it.price) || 0, price2y: Number(it.price2y) || 0, price3y: Number(it.price3y) || 0,
+            installCharge: it.installCharge === undefined || it.installCharge === '' ? null : Number(it.installCharge),
+            stock: Number(it.stock) || 0, image: String(it.image || ''), desc: String(it.desc || ''),
+            benefits: it.benefits ? String(it.benefits).split(',').map(s => s.trim()).filter(Boolean) : [],
+            manufacturer: String(it.manufacturer || ''), origin: String(it.origin || ''), importer: String(it.importer || ''),
+            address: String(it.address || ''), generic: String(it.generic || 'Software'), package: String(it.package || ''),
+            guide: String(it.guide || ''), brandDesc: String(it.brandDesc || '')
+          }));
+          if (!items.length) return alert("Excel khaali hai.");
+          if (items.length + products.length > 480) return alert("Ek baar mein itne products nahi chalenge (max ~240).");
+          if (!confirm(`${items.length} products import honge aur purane products replace honge. Continue?`)) return;
+          const batch = db.batch();
+          products.forEach(p => batch.delete(db.collection('products').doc(String(p.id))));
+          items.forEach(it => batch.set(db.collection('products').doc(it.id), it));
+          await batch.commit(); alert("Inventory updated!");
+        } catch (err) { console.error(err); alert("Import fail hua. Excel format check karein."); }
+        event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    async function seedSample() {
+      if (!live) return alert("Demo mode.");
+      if (!confirm("2 sample products add karein?")) return;
+      try { const b = db.batch(); SAMPLE.forEach(p => b.set(db.collection('products').doc(p.id), p)); await b.commit(); alert("Added!"); }
+      catch (e) { alert("Fail hua."); }
+    }
+
+    // ---------- Agent ----------
+    function renderAgent() {
+      $('agent-tasks-table').innerHTML = orders.map(o =>
+        `<tr><td>${esc(o.customer)}</td><td>${esc(o.contact)}</td><td>${esc(o.productName)}</td><td>${esc(o.status)}</td>
+         <td>${o.status === 'Completed' ? '✔' : `<button data-done="${esc(o._id)}" style="background:green;color:white;padding:5px 10px;border-radius:4px;">Mark Done</button>`}</td></tr>`).join('');
+    }
+    async function markDone(id) {
+      const o = orders.find(x => x._id === id); if (!o || o.status === 'Completed') return;
+      try {
+        await db.collection('orders').doc(id).update({ status: 'Completed' });
+        if (o.productId) await db.collection('products').doc(o.productId).update({ stock: FV.increment(-1) }).catch(() => {});
+        alert("Task Marked as Installed!");
+      } catch (e) { alert("Update fail hua."); }
+    }
+
+    // ---------- Navigation / init ----------
+    function toggleMenu() { $('sidebar').classList.toggle('active'); $('sidebar-overlay').classList.toggle('active'); }
+    $('admin-orders-table').addEventListener('change', e => { const s = e.target.closest('select[data-id]'); if (s) assignAgent(s.dataset.id, s.value); });
+    $('admin-orders-table').addEventListener('click', e => { const b = e.target.closest('button[data-pay]'); if (b) markPaid(b.dataset.pay); });
+    $('agent-tasks-table').addEventListener('click', e => { const b = e.target.closest('button[data-done]'); if (b) markDone(b.dataset.done); });
+    if (!live) { $('demo-banner').classList.remove('hidden'); $('fb-status').innerHTML = '<strong style="color:#c00">⚠️ Demo mode: Firebase config nahi hai</strong>'; }
+    startPublic();
+  </script>
+</body>
+</html>
