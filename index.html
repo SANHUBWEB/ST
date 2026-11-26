@@ -211,6 +211,7 @@
     <div class="sidebar" id="sidebar">
       <div class="sidebar-top"><span>MENU</span><span onclick="toggleMenu()" style="cursor:pointer">✕</span></div>
       <ul class="sidebar-links" id="sidebar-links"></ul>
+      <ul class="sidebar-links" style="padding-top:0"><li style="cursor:pointer" onclick="openCfg()">⚙️ FIREBASE SETUP</li></ul>
     </div>
 
     <div class="hero">
@@ -485,6 +486,15 @@
     </div>
   </div>
 
+  <div class="modal" id="cfg-modal"><div class="modal-content">
+    <div class="modal-header"><h2>Firebase Config</h2><button class="close-btn" onclick="document.getElementById('cfg-modal').classList.remove('active')">×</button></div>
+    <p id="cfg-status" style="font-size:13px;margin-bottom:8px"></p>
+    <textarea id="cfg-input" rows="9" style="width:100%;padding:8px;font-family:monospace;font-size:12px;border:1px solid #ccc;border-radius:5px" placeholder="Firebase ka firebaseConfig code yahan paste karein"></textarea>
+    <button class="btn" style="width:100%;padding:12px;margin-top:10px" onclick="saveCfg()">Save Config</button>
+    <button class="btn" style="width:100%;padding:12px;margin-top:8px;background:#777" onclick="clearCfg()">Remove Saved Config</button>
+    <p style="font-size:12px;color:#777;margin-top:8px">Ye sirf is browser/device mein save hota hai. Sabhi customers ke liye config file ke andar paste karna padega.</p>
+  </div></div>
+
   <div class="modal" id="info-modal"><div class="modal-content">
     <div class="modal-header"><h2 id="info-title"></h2><button class="close-btn" onclick="document.getElementById('info-modal').classList.remove('active')">×</button></div>
     <p id="info-text" style="white-space:pre-wrap;font-size:14px"></p></div></div>
@@ -503,10 +513,15 @@
       appId: "YOUR_APP_ID"
     };
 
+    // Is browser mein saved config (menu se) ho to wahi use hoga
+    let savedCfg = null;
+    try { savedCfg = JSON.parse(localStorage.getItem('fbConfig') || 'null'); } catch (e) {}
+    const cfg = savedCfg && savedCfg.apiKey ? savedCfg : firebaseConfig;
+
     let db = null, auth = null, FV = null;
-    if (!firebaseConfig.apiKey.startsWith("YOUR_")) {
+    if (!cfg.apiKey.startsWith("YOUR_")) {
       try {
-        firebase.initializeApp(firebaseConfig);
+        firebase.initializeApp(cfg);
         db = firebase.firestore(); auth = firebase.auth(); FV = firebase.firestore.FieldValue;
       } catch (e) { console.error("Firebase init failed", e); }
     }
@@ -854,6 +869,25 @@
         if (o.productId) await db.collection('products').doc(o.productId).update({ stock: FV.increment(-1) }).catch(() => {});
         alert("Task Marked as Installed!");
       } catch (e) { alert("Update fail hua."); }
+    }
+
+    // ---------- Firebase config (menu se save) ----------
+    function openCfg() {
+      $('cfg-status').innerText = savedCfg && savedCfg.apiKey ? '✅ Saved config use ho raha hai (project: ' + (savedCfg.projectId || '?') + ')'
+        : (live ? '✅ File wala config use ho raha hai' : '⚠️ Abhi config set nahi hai');
+      $('cfg-input').value = ''; $('cfg-modal').classList.add('active');
+      $('sidebar').classList.remove('active'); $('sidebar-overlay').classList.remove('active');
+    }
+    function saveCfg() {
+      const out = {}; let m; const re = /["']?(\w+)["']?\s*:\s*["']([^"']*)["']/g;
+      while ((m = re.exec($('cfg-input').value))) out[m[1]] = m[2];
+      if (!out.apiKey || !out.projectId || !out.appId) return alert("Config adhura hai. apiKey, projectId aur appId zaroori hain. Poora firebaseConfig code paste karein.");
+      try { localStorage.setItem('fbConfig', JSON.stringify(out)); } catch (e) { return alert("Is browser mein save nahi ho paya."); }
+      alert("Config save ho gaya. Page reload hoga."); location.reload();
+    }
+    function clearCfg() {
+      try { localStorage.removeItem('fbConfig'); } catch (e) {}
+      alert("Saved config hata diya."); location.reload();
     }
 
     // ---------- Navigation / init ----------
